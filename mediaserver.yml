@@ -1,0 +1,237 @@
+---
+version: "2.1"
+services:
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+      - PLEX_CLAIM= #optional
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config:/config
+      - /mnt/NAS/Files/data:/media
+    restart: unless-stopped
+
+  homarr:
+    container_name: homarr
+    image: ghcr.io/ajnart/homarr:latest
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Optional, only if you want docker integration
+      - /home/xerxys/mediaserver/mediaserver-config/Homarr:/configs
+      - /home/xerxys/mediaserver/mediaserver-config/Homarr/icons:/icons
+      - /home/xerxys/mediaserver/mediaserver-config/Homarr/data:/data
+    ports:
+      - 7575:7575
+    restart: unless-stopped
+
+  overseerr:
+    image: sctx/overseerr:latest
+    container_name: overseerr
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=America/Chicago
+      - PORT=5055 #optional
+    ports:
+      - 5055:5055
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Overseerr:/config
+    restart: unless-stopped
+ 
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Prowlarr:/config
+      - /home/xerxys/mediaserver/Downloads:/downloads
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+
+  flaresolverr:
+      image: ghcr.io/flaresolverr/flaresolverr:latest
+      container_name: flaresolverr
+      environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info} 
+      - LOG_HTML=${LOG_HTML:-false} 
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+        - TZ=America/Chicago
+      volumes:
+        - /home/xerxys/mediaserver/mediaserver-config/Flaresolverr:/config
+      ports:
+        - 8191:8191
+      restart: unless-stopped
+    
+  organizr:
+    container_name: organizr
+    hostname: organizr
+    image: organizr/organizr
+    restart: unless-stopped
+    ports:
+        - 90:80
+    volumes:
+        - /home/xerxys/mediaserver/mediaserver-config/Organizr:/config
+    environment:
+        - fpm=true #true or false | using true will provide better performance
+        - branch=v2-master #v2-master or #v2-develop
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+    
+  qbittorrentvpn:
+    image: markusmcnugen/qbittorrentvpn
+    container_name: qbittorrentvpn
+    privileged: true  
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=1000
+      - PGID=1000
+#      - WEBUI_PORT_ENV=8080
+#      - INCOMING_PORT_ENV=8999
+      - VPN_ENABLED=no #yes
+#      - LAN_NETWORK=192.168.86.0/24 #adjust this to YOUR network settings
+      - NAME_SERVERS=1.1.1.1,8.8.8.8 #you can use whatever DNS provider you want
+#    ports:
+#      - 8080:8080
+#      - 8999:8999
+#      - 8999:8999/udp
+    volumes:
+      - /mnt/NAS/Files/Configs/QBittorrentVPN:/config
+      - /home/xerxys/mediaserver/Downloads:/downloads
+      - /etc/timezone:/etc/timezone:ro #This is for TimeZone
+    restart: unless-stopped
+
+  gluetun:
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/gluetun:/gluetun
+    ports:
+      - 8888:8888/tcp # HTTP proxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
+      # qbittorrent ports
+      - 8080:8080
+      - 8999:8999
+      - 8999:8999/udp
+    environment:
+      - VPN_SERVICE_PROVIDER=[YOUR VPN PROVIDER]
+      - OPENVPN_USER=[YOUR VPN USERNAME]
+      - OPENVPN_PASSWORD=[YOUR VPN PASSWORD]
+      - SERVER_REGIONS=Netherlands
+    restart: unless-stopped
+  
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022 #optional
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Radarr:/config
+      - /home/xerxys/mediaserver/Downloads:/downloads
+      - /mnt/NAS/Files/data/Movies:/Movies
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+
+  readarr:
+    image: lscr.io/linuxserver/readarr:nightly
+    container_name: readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Readarr:/config
+      - /mnt/NAS/Files/data:/media #optional
+      - /home/xerxys/mediaserver/Downloads:/downloads #optional
+    ports:
+      - 8787:8787
+    restart: unless-stopped
+    
+  sabnzbd:
+    image: ghcr.io/linuxserver/sabnzbd
+    container_name: sabnzbd
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Sabnzbd:/config
+      - /home/xerxys/mediaserver/Downloads:/downloads
+      - /home/xerxys/mediaserver/Downloads/incomplete:/incomplete-downloads #optional
+    ports:
+      - 8181:8080
+      - 9191:9090
+    restart: unless-stopped
+    
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022
+    volumes:
+      - /home/xerxys/mediaserver/mediaserver-config/Sonarr:/config
+      - /home/xerxys/mediaserver/Downloads:/Downloads
+      - /mnt/NAS/Files/data/TV:/TV
+      - /mnt/NAS/Files/data/Anime:/Anime
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+
+## System Monitoring
+
+  prometheus:
+      image: prom/prometheus
+      container_name: prometheus
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+        - UMASK_SET=022
+      volumes:
+        - /mnt/NAS/Files/Configs/Prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      ports:
+        - 9292:9090
+      restart: unless-stopped
+
+  node-exporter:
+      image: quay.io/prometheus/node-exporter:latest
+      container_name: node-exporter
+      network_mode: host
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+        - UMASK_SET=022
+      volumes:
+        - /:/host:ro,rslave
+      ports:
+        - 9100:9090
+      restart: unless-stopped
+    
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022
+    ports:
+      - 3000:3000
+    restart: unless-stopped
